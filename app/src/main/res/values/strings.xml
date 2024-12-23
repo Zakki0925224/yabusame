@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">yabusame</string>
+    <string name="control_button_start_scan">Start scan</string>
 </resources>

@@ -59,6 +59,11 @@ dependencies {
 
     implementation(libs.accompanist.permissions)
 
+    implementation(libs.tensorflow.lite)
+    implementation(libs.tensorflow.lite.support)
+
+    implementation (libs.kotlinx.coroutines.core)
+
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)
 }

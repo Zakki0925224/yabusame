@@ -1,8 +1,7 @@
 package io.github.zakki0925224.yabusame.ui
 
 import android.graphics.*
-import android.util.Log
-import android.util.Size
+import android.util.*
 import android.view.ViewGroup.LayoutParams.MATCH_PARENT
 import android.widget.LinearLayout
 import androidx.camera.core.*
@@ -28,7 +27,7 @@ private fun Bitmap.rotate(degrees: Int): Bitmap {
 }
 
 private val analysisScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
-private const val FRAME_INTERVAL = 20
+private const val FRAME_INTERVAL = 30
 private var frameCounter = 0
 
 @Composable
@@ -65,8 +64,8 @@ fun Camera(detector: YoloV8Model) {
                         detector.detect(rotatedBitmap)
                     }
 
-                    withContext(Dispatchers.Main) {
-                        analyzedBitmap.value = boundingBoxes?.let { boxes -> drawBoundingBoxes(rotatedBitmap, boxes) }
+                    if (boundingBoxes != null) {
+                        analyzedBitmap.value = drawBoundingBoxes(rotatedBitmap, boundingBoxes)
                     }
                 }
             }

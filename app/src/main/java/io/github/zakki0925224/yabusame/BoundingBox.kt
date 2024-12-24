@@ -26,7 +26,7 @@ fun drawBoundingBoxes(bitmap: Bitmap, boxes: List<BoundingBox>): Bitmap {
     }
     val textPaint = Paint().apply {
         color = Color.WHITE
-        textSize = 40f
+        textSize = 30f
         typeface = Typeface.DEFAULT_BOLD
     }
 

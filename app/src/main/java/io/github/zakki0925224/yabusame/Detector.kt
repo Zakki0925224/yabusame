@@ -2,6 +2,7 @@ package io.github.zakki0925224.yabusame
 
 import android.content.Context
 import android.graphics.Bitmap
+import android.util.Log
 import org.tensorflow.lite.*
 import org.tensorflow.lite.support.common.FileUtil
 import org.tensorflow.lite.support.common.ops.*
@@ -29,8 +30,12 @@ class YoloV8Model (context: Context) {
         private const val INPUT_STDDEV = 255.0f
         private val INPUT_IMAGE_TYPE = DataType.FLOAT32
         private val OUTPUT_IMAGE_TYPE = DataType.FLOAT32
-        private const val CONF_THRESHOLD = 0.3f
-        private const val IOU_THRESHOLD = 0.5f
+        private const val CONF_THRESHOLD = 0.7f
+        private const val IOU_THRESHOLD = 0.4f
+        private const val MAX_DETECTION_COUNT = 10
+
+        // https://qiita.com/napspans/items/e7390280b7f31675325c
+        private val DETECTION_LIST = intArrayOf(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13)
     }
 
     init {
@@ -96,6 +101,15 @@ class YoloV8Model (context: Context) {
                 continue
             }
 
+            // invalid data
+            if (maxConf > 1.0f) {
+                continue
+            }
+
+            if (maxIdx !in DETECTION_LIST) {
+                continue
+            }
+
             val clsName = this.labels[maxIdx]
             val cx = array[i]
             val cy = array[i + this.numElements]
@@ -111,7 +125,21 @@ class YoloV8Model (context: Context) {
             if (x2 < 0.0f || x2 > 1.0f) continue
             if (y2 < 0.0f || y2 > 1.0f) continue
 
-            boxes.add(BoundingBox(x1, y1, x2, y2, cx, cy, w, h, maxConf, maxIdx, clsName))
+            boxes.add(
+                BoundingBox(
+                x1 = x1,
+                y1 = y1,
+                x2 = x2,
+                y2 = y2,
+                cx = cx,
+                cy = cy,
+                w = w,
+                h = h,
+                cnf = maxConf,
+                cls = maxIdx,
+                clsName = clsName
+            )
+            )
         }
 
         if (boxes.isEmpty()) {
@@ -122,7 +150,7 @@ class YoloV8Model (context: Context) {
         val sortedBoxes = boxes.sortedByDescending { it.cnf }.toMutableList()
         val selectedBoxes = mutableListOf<BoundingBox>()
 
-        while (sortedBoxes.isNotEmpty()) {
+        while (sortedBoxes.isNotEmpty() && selectedBoxes.size < MAX_DETECTION_COUNT) {
             val first = sortedBoxes.first()
             selectedBoxes.add(first)
             sortedBoxes.remove(first)
@@ -158,6 +186,18 @@ class YoloV8Model (context: Context) {
             OUTPUT_IMAGE_TYPE)
         this.interpreter.run(imageBuffer, output.buffer)
 
-        return bestBox(output.floatArray)
+        val boundingBoxes = bestBox(output.floatArray)
+
+//        if (boundingBoxes != null) {
+//            Log.d("detector", "detected: ${boundingBoxes.size} (confidence threshold: $CONF_THRESHOLD)")
+//            Log.d("detector", "confidence: max: ${boundingBoxes.maxOf { it.cnf }}, min: ${boundingBoxes.minOf { it.cnf }}")
+//            if (boundingBoxes.size == MAX_DETECTION_COUNT) {
+//                for (box in boundingBoxes) {
+//                    Log.d("detector", "box: $box")
+//                }
+//            }
+//        }
+
+        return boundingBoxes
     }
 }

@@ -5,8 +5,6 @@ import android.os.*
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.runtime.Composable
-import androidx.compose.ui.tooling.preview.Preview
 import io.github.zakki0925224.yabusame.ui.*
 import io.github.zakki0925224.yabusame.ui.theme.YabusameTheme
 

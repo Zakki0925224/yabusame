@@ -11,6 +11,7 @@ import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
+import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asImageBitmap
@@ -27,6 +28,8 @@ private fun Bitmap.rotate(degrees: Int): Bitmap {
 }
 
 private val analysisScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+private const val FRAME_INTERVAL = 20
+private var frameCounter = 0
 
 @Composable
 fun Camera(detector: YoloV8Model) {
@@ -45,18 +48,26 @@ fun Camera(detector: YoloV8Model) {
         .build()
         .also {
             it.setAnalyzer(ContextCompat.getMainExecutor(context)) { imageProxy ->
+                frameCounter++
+
+                if (frameCounter % FRAME_INTERVAL != 0) {
+                    imageProxy.close()
+                    return@setAnalyzer
+                }
+
+                frameCounter = 0
+
                 analysisScope.launch {
                     val rotatedBitmap = imageProxy.toBitmap().rotate(imageProxy.imageInfo.rotationDegrees)
+                    imageProxy.close()
 
                     val boundingBoxes = withContext(Dispatchers.Default) {
                         detector.detect(rotatedBitmap)
                     }
 
                     withContext(Dispatchers.Main) {
-                        analyzedBitmap.value = boundingBoxes?.let { drawBoundingBoxes(rotatedBitmap, it) }
+                        analyzedBitmap.value = boundingBoxes?.let { boxes -> drawBoundingBoxes(rotatedBitmap, boxes) }
                     }
-
-                    imageProxy.close()
                 }
             }
         }
@@ -88,16 +99,25 @@ fun Camera(detector: YoloV8Model) {
         }
     }
 
-    Box(modifier = Modifier.fillMaxSize()) {
+    Row(modifier = Modifier.fillMaxSize()) {
+        AndroidView(
+            factory = { previewView },
+            modifier = Modifier.weight(1.0f)
+        )
+
         analyzedBitmap.value?.let {
             Image(
                 bitmap = it.asImageBitmap(),
                 contentDescription = null,
-                modifier = Modifier.fillMaxSize()
+                modifier = Modifier
+                    .weight(1.0f)
+                    .fillMaxHeight()
             )
-        } ?: AndroidView(
-            factory = { previewView },
-            modifier = Modifier.fillMaxSize()
+        } ?: Text(
+            text = "Analyzing...",
+            modifier = Modifier
+                .weight(1.0f)
+                .fillMaxHeight()
         )
     }
 }

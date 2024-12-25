@@ -2,7 +2,9 @@ package io.github.zakki0925224.yabusame
 
 import android.content.Context
 import android.graphics.Bitmap
+import android.util.Log
 import org.tensorflow.lite.*
+import org.tensorflow.lite.gpu.*
 import org.tensorflow.lite.support.common.FileUtil
 import org.tensorflow.lite.support.common.ops.*
 import org.tensorflow.lite.support.image.*
@@ -40,7 +42,13 @@ class YoloV8Model (context: Context) {
     init {
         val model = FileUtil.loadMappedFile(context, MODEL_PATH)
         val options = Interpreter.Options()
-        options.numThreads = 4
+
+        if (CompatibilityList().isDelegateSupportedOnThisDevice) {
+            options.addDelegate(GpuDelegate())
+        } else {
+            options.numThreads = 4
+            Log.d("detector", "GPU delegate is not supported.")
+        }
 
         this.interpreter = Interpreter(model, options)
 

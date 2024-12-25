@@ -2,7 +2,6 @@ package io.github.zakki0925224.yabusame
 
 import android.content.Context
 import android.graphics.Bitmap
-import android.util.Log
 import org.tensorflow.lite.*
 import org.tensorflow.lite.support.common.FileUtil
 import org.tensorflow.lite.support.common.ops.*
@@ -30,9 +29,9 @@ class YoloV8Model (context: Context) {
         private const val INPUT_STDDEV = 255.0f
         private val INPUT_IMAGE_TYPE = DataType.FLOAT32
         private val OUTPUT_IMAGE_TYPE = DataType.FLOAT32
-        private const val CONF_THRESHOLD = 0.7f
+        const val CNF_THRESHOLD = 0.7f
         private const val IOU_THRESHOLD = 0.4f
-        private const val MAX_DETECTION_COUNT = 10
+        const val MAX_DETECTION_COUNT = 20
 
         // https://qiita.com/napspans/items/e7390280b7f31675325c
         private val DETECTION_LIST = intArrayOf(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13)
@@ -83,26 +82,26 @@ class YoloV8Model (context: Context) {
         val boxes = mutableListOf<BoundingBox>()
 
         for (i in 0 until this.numElements) {
-            var maxConf = CONF_THRESHOLD
+            var maxCnf = CNF_THRESHOLD
             var maxIdx = -1
             var j = 4
             var arrayIdx = i + this.numElements * j
 
             while (j < this.numChannel) {
-                if (array[arrayIdx] > maxConf) {
-                    maxConf = array[arrayIdx]
+                if (array[arrayIdx] > maxCnf) {
+                    maxCnf = array[arrayIdx]
                     maxIdx = j - 4
                 }
                 j++
                 arrayIdx += this.numElements
             }
 
-            if (maxConf <= CONF_THRESHOLD) {
+            if (maxCnf <= CNF_THRESHOLD) {
                 continue
             }
 
             // invalid data
-            if (maxConf > 1.0f) {
+            if (maxCnf > 1.0f) {
                 continue
             }
 
@@ -135,7 +134,7 @@ class YoloV8Model (context: Context) {
                 cy = cy,
                 w = w,
                 h = h,
-                cnf = maxConf,
+                cnf = maxCnf,
                 cls = maxIdx,
                 clsName = clsName
             )
@@ -186,18 +185,6 @@ class YoloV8Model (context: Context) {
             OUTPUT_IMAGE_TYPE)
         this.interpreter.run(imageBuffer, output.buffer)
 
-        val boundingBoxes = bestBox(output.floatArray)
-
-//        if (boundingBoxes != null) {
-//            Log.d("detector", "detected: ${boundingBoxes.size} (confidence threshold: $CONF_THRESHOLD)")
-//            Log.d("detector", "confidence: max: ${boundingBoxes.maxOf { it.cnf }}, min: ${boundingBoxes.minOf { it.cnf }}")
-//            if (boundingBoxes.size == MAX_DETECTION_COUNT) {
-//                for (box in boundingBoxes) {
-//                    Log.d("detector", "box: $box")
-//                }
-//            }
-//        }
-
-        return boundingBoxes
+        return bestBox(output.floatArray)
     }
 }

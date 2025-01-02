@@ -58,8 +58,13 @@ dependencies {
     implementation(libs.accompanist.permissions)
 
     implementation(libs.tensorflow.lite)
+    implementation(libs.tensorflow.lite.api)
     implementation(libs.tensorflow.lite.support)
+    implementation(libs.tensorflow.lite.select.tf.ops)
     implementation(libs.tensorflow.lite.gpu)
+    implementation(libs.tensorflow.lite.gpu.api)
+    implementation(libs.tensorflow.lite.gpu.delegate.plugin)
+    implementation(libs.tensorflow.lite.metadata)
 
     implementation (libs.kotlinx.coroutines.core)
 

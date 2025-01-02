@@ -7,6 +7,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import io.github.zakki0925224.yabusame.ui.*
 import io.github.zakki0925224.yabusame.ui.theme.YabusameTheme
+import java.util.concurrent.*
 
 class MainActivity : ComponentActivity() {
     private val REQUIRED_PERMISSIONS =
@@ -19,17 +20,28 @@ class MainActivity : ComponentActivity() {
             }
         }.toList()
 
+    private lateinit var cameraExecutor: ExecutorService
     private lateinit var detector: YoloV8Model
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
-        this.detector = YoloV8Model(this)
+        this.cameraExecutor = Executors.newSingleThreadExecutor()
 
-        setContent {
-            YabusameTheme {
-                TopLevel(permissions = REQUIRED_PERMISSIONS, detector = detector)
+        this.cameraExecutor.execute {
+            this.detector = YoloV8Model(this)
+
+            runOnUiThread {
+                setContent {
+                    YabusameTheme {
+                        TopLevel(
+                            permissions = REQUIRED_PERMISSIONS,
+                            detector = this.detector,
+                            cameraExecutor = this.cameraExecutor
+                        )
+                    }
+                }
             }
         }
     }

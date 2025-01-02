@@ -8,10 +8,14 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import io.github.zakki0925224.yabusame.R
 import io.github.zakki0925224.yabusame.YoloV8Model
+import java.util.concurrent.ExecutorService
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun TopLevel(permissions: List<String>, detector: YoloV8Model) {
+fun TopLevel(
+    permissions: List<String>,
+    cameraExecutor: ExecutorService,
+    detector: YoloV8Model) {
     Scaffold(
         topBar = {
             TopAppBar(
@@ -28,7 +32,7 @@ fun TopLevel(permissions: List<String>, detector: YoloV8Model) {
             content = {
                 Column(modifier = Modifier.fillMaxSize()) {
                     Box(modifier = Modifier.weight(1f)) {
-                        Camera(detector)
+                        Camera(detector, cameraExecutor)
                     }
                     Control()
                     Spacer(modifier = Modifier.height(128.dp))

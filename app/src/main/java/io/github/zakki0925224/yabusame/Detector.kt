@@ -2,6 +2,7 @@ package io.github.zakki0925224.yabusame
 
 import android.content.Context
 import android.graphics.Bitmap
+import android.os.SystemClock
 import android.util.Log
 import org.tensorflow.lite.*
 import org.tensorflow.lite.gpu.*
@@ -14,15 +15,22 @@ import java.io.*
 class YoloV8Model (context: Context) {
     private var interpreter: Interpreter
     private var labels: List<String> = mutableListOf()
-    private var tensorWidth: Int
-    private var tensorHeight: Int
-    private var numChannel: Int
-    private var numElements: Int
+    private var tensorWidth: Int = 0
+    private var tensorHeight: Int = 0
+    private var numChannel: Int = 0
+    private var numElements: Int = 0
 
     private val imageProcessor = ImageProcessor.Builder()
         .add(NormalizeOp(INPUT_MEAN, INPUT_STDDEV))
         .add(CastOp(INPUT_IMAGE_TYPE))
         .build()
+
+    interface DetectorListener {
+        fun onDetected(boxes: List<BoundingBox>, inferenceTime: Long)
+        fun onEmptyDetected()
+    }
+
+    var detectorListener: DetectorListener? = null
 
     companion object {
         private const val MODEL_PATH = "yolov8s_float32.tflite"
@@ -32,8 +40,7 @@ class YoloV8Model (context: Context) {
         private val INPUT_IMAGE_TYPE = DataType.FLOAT32
         private val OUTPUT_IMAGE_TYPE = DataType.FLOAT32
         const val CNF_THRESHOLD = 0.7f
-        private const val IOU_THRESHOLD = 0.4f
-        const val MAX_DETECTION_COUNT = 20
+        private const val IOU_THRESHOLD = 0.7f
 
         // https://qiita.com/napspans/items/e7390280b7f31675325c
         private val DETECTION_LIST = intArrayOf(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13)
@@ -41,23 +48,35 @@ class YoloV8Model (context: Context) {
 
     init {
         val model = FileUtil.loadMappedFile(context, MODEL_PATH)
-        val options = Interpreter.Options()
-
-        if (CompatibilityList().isDelegateSupportedOnThisDevice) {
-            options.addDelegate(GpuDelegate())
-        } else {
-            options.numThreads = 4
-            Log.d("detector", "GPU delegate is not supported.")
+        val compatList = CompatibilityList()
+        val options = Interpreter.Options().apply {
+            if (compatList.isDelegateSupportedOnThisDevice) {
+                this.addDelegate(GpuDelegate(compatList.bestOptionsForThisDevice))
+            } else {
+                this.numThreads = 4
+                Log.d("detector", "GPU delegate is not supported.")
+            }
         }
 
         this.interpreter = Interpreter(model, options)
 
-        val inputShape = this.interpreter.getInputTensor(0).shape()
-        val outputShape = this.interpreter.getOutputTensor(0).shape()
-        this.tensorWidth = inputShape[1]
-        this.tensorHeight = inputShape[2]
-        this.numChannel = outputShape[1]
-        this.numElements = outputShape[2]
+        val inputShape = this.interpreter.getInputTensor(0)?.shape()
+        val outputShape = this.interpreter.getOutputTensor(0)?.shape()
+
+        if (inputShape != null) {
+            this.tensorWidth = inputShape[1]
+            this.tensorHeight = inputShape[2]
+
+            if (inputShape[1] == 3) {
+                this.tensorWidth = inputShape[2]
+                this.tensorHeight = inputShape[3]
+            }
+        }
+
+        if (outputShape != null) {
+            this.numChannel = outputShape[1]
+            this.numElements = outputShape[2]
+        }
 
         // read labels
         try {
@@ -104,60 +123,34 @@ class YoloV8Model (context: Context) {
                 arrayIdx += this.numElements
             }
 
-            if (maxCnf <= CNF_THRESHOLD) {
-                continue
+            if (maxCnf > CNF_THRESHOLD && DETECTION_LIST.contains(maxIdx)) {
+                val clsName = labels[maxIdx]
+                val cx = array[i]
+                val cy = array[i + this.numElements]
+                val w = array[i + this.numElements * 2]
+                val h = array[i + this.numElements * 3]
+                val x1 = cx - (w / 2.0f)
+                val y1 = cy - (h / 2.0f)
+                val x2 = cx + (w / 2.0f)
+                val y2 = cy + (h / 2.0f)
+                if (x1 < 0.0f || x1 > 1.0f) continue
+                if (y1 < 0.0f || y1 > 1.0f) continue
+                if (x2 < 0.0f || x2 > 1.0f) continue
+                if (y2 < 0.0f || y2 > 1.0f) continue
+
+                boxes.add(BoundingBox(
+                    x1, y1, x2, y2, cx, cy, w, h, maxCnf, maxIdx, clsName
+                ))
             }
-
-            // invalid data
-            if (maxCnf > 1.0f) {
-                continue
-            }
-
-            if (maxIdx !in DETECTION_LIST) {
-                continue
-            }
-
-            val clsName = this.labels[maxIdx]
-            val cx = array[i]
-            val cy = array[i + this.numElements]
-            val w = array[i + this.numElements * 2]
-            val h = array[i + this.numElements * 3]
-            val x1 = cx - (w / 2.0f)
-            val y1 = cy - (h / 2.0f)
-            val x2 = cx + (w / 2.0f)
-            val y2 = cy + (h / 2.0f)
-
-            if (x1 < 0.0f || x1 > 1.0f) continue
-            if (y1 < 0.0f || y1 > 1.0f) continue
-            if (x2 < 0.0f || x2 > 1.0f) continue
-            if (y2 < 0.0f || y2 > 1.0f) continue
-
-            boxes.add(
-                BoundingBox(
-                x1 = x1,
-                y1 = y1,
-                x2 = x2,
-                y2 = y2,
-                cx = cx,
-                cy = cy,
-                w = w,
-                h = h,
-                cnf = maxCnf,
-                cls = maxIdx,
-                clsName = clsName
-            )
-            )
         }
 
-        if (boxes.isEmpty()) {
-            return null
-        }
+        if (boxes.isEmpty()) return null
 
         // sort
-        val sortedBoxes = boxes.sortedByDescending { it.cnf }.toMutableList()
+        val sortedBoxes = boxes.sortedByDescending { b -> b.cnf }.toMutableList()
         val selectedBoxes = mutableListOf<BoundingBox>()
 
-        while (sortedBoxes.isNotEmpty() && selectedBoxes.size < MAX_DETECTION_COUNT) {
+        while (sortedBoxes.isNotEmpty()) {
             val first = sortedBoxes.first()
             selectedBoxes.add(first)
             sortedBoxes.remove(first)
@@ -176,12 +169,17 @@ class YoloV8Model (context: Context) {
         return selectedBoxes
     }
 
-    fun detect(frame: Bitmap): List<BoundingBox>? {
-        if (this.tensorWidth == 0) return null
-        if (this.tensorHeight == 0) return null
-        if (this.numChannel == 0) return null
-        if (this.numElements == 0) return null
+    fun close() {
+        this.interpreter.close()
+    }
 
+    fun detect(frame: Bitmap) {
+        if (this.tensorWidth == 0) return
+        if (this.tensorHeight == 0) return
+        if (this.numChannel == 0) return
+        if (this.numElements == 0) return
+
+        var inferenceTime = SystemClock.uptimeMillis()
         val resizedBitmap = Bitmap.createScaledBitmap(frame, this.tensorWidth, this.tensorHeight, false)
         val tensorImage = TensorImage(INPUT_IMAGE_TYPE)
         tensorImage.load(resizedBitmap)
@@ -191,8 +189,22 @@ class YoloV8Model (context: Context) {
         val output = TensorBuffer.createFixedSize(
             intArrayOf(1, this.numChannel, this.numElements),
             OUTPUT_IMAGE_TYPE)
-        this.interpreter.run(imageBuffer, output.buffer)
 
-        return bestBox(output.floatArray)
+        try {
+            this.interpreter.run(imageBuffer, output.buffer)
+        } catch (e: Exception) {
+            Log.e("detector", "Failed to run the model", e)
+            return
+        }
+
+        val bestBoxes = bestBox(output.floatArray)
+        inferenceTime = SystemClock.uptimeMillis() - inferenceTime
+
+        if (bestBoxes == null) {
+            this.detectorListener?.onEmptyDetected()
+            return
+        }
+
+        this.detectorListener?.onDetected(bestBoxes, inferenceTime)
     }
 }

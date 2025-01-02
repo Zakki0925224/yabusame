@@ -1,10 +1,12 @@
 package io.github.zakki0925224.yabusame.ui
 
+import android.annotation.SuppressLint
 import android.graphics.*
 import android.util.*
 import android.view.ViewGroup.LayoutParams.MATCH_PARENT
 import android.widget.LinearLayout
 import androidx.camera.core.*
+import androidx.camera.core.resolutionselector.*
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.compose.foundation.Image
@@ -15,78 +17,100 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.viewinterop.AndroidView
-import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import io.github.zakki0925224.yabusame.*
 import kotlinx.coroutines.*
+import java.util.concurrent.ExecutorService
 
-private fun Bitmap.rotate(degrees: Int): Bitmap {
-    val matrix = Matrix().apply { postRotate(degrees.toFloat()) }
-    return Bitmap.createBitmap(this, 0, 0, width, height, matrix, true)
-}
-
-private val analysisScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
-private const val FRAME_INTERVAL = 30
-private const val CAMERA_FPS = 30
-private const val DETECTION_TIMEOUT_MS = CAMERA_FPS / FRAME_INTERVAL * 1000
-private var frameCounter = 0
+private val superScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+private val mainScope = CoroutineScope(Dispatchers.Main)
+private const val ANALYZE_FPS = 0.5
 
 @Composable
-fun Camera(detector: YoloV8Model) {
-    val analyzedBitmap = remember { mutableStateOf<Bitmap?>(null) }
+fun Camera(detector: YoloV8Model, cameraExecutor: ExecutorService) {
+    var latestAnalyzedTimestamp = 0L
+
+    val cameraBitmap = remember { mutableStateOf<Bitmap?>(null) }
+    val overlayBitmap = remember { mutableStateOf<Bitmap?>(null) }
     val detectionStatus = remember { mutableStateOf("") }
 
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
+
+    detector.detectorListener = object : YoloV8Model.DetectorListener {
+        override fun onEmptyDetected() {
+            mainScope.launch {
+                detectionStatus.value = "No objects detected"
+                overlayBitmap.value = cameraBitmap.value
+            }
+        }
+
+        @SuppressLint("DefaultLocale")
+        override fun onDetected(boxes: List<BoundingBox>, inferenceTime: Long) {
+            val detectionCount = boxes.size
+            val cnfThreshold = YoloV8Model.CNF_THRESHOLD
+            val averageCnf = boxes.map { box -> box.cnf }.average()
+
+            val msgDetectionCount = "Detected $detectionCount objects"
+            val msgCnfInfo = "Conf THD: ${String.format("%.2f", cnfThreshold)}, Avg conf: ${String.format("%.2f", averageCnf)}"
+            val msgInfTime = "Inf time: $inferenceTime ms"
+
+            mainScope.launch {
+                detectionStatus.value = "$msgDetectionCount\n$msgCnfInfo\n$msgInfTime"
+                overlayBitmap.value = drawBoundingBoxes(cameraBitmap.value!!, boxes)
+            }
+        }
+    }
+
     val imageAnalyzer = ImageAnalysis.Builder()
-          .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
-//        .setResolutionSelector(ResolutionSelector.Builder().setResolutionStrategy(
-//            ResolutionStrategy(
-//                Size(640, 480),
-//            ResolutionStrategy.FALLBACK_RULE_CLOSEST_HIGHER_THEN_LOWER)
-//        )
-//            .build())
+        .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
+        .setOutputImageFormat(ImageAnalysis.OUTPUT_IMAGE_FORMAT_RGBA_8888)
+        .setResolutionSelector(
+            ResolutionSelector.Builder()
+                .setAspectRatioStrategy(
+                    AspectRatioStrategy(
+                        AspectRatio.RATIO_4_3,
+                        AspectRatioStrategy.FALLBACK_RULE_AUTO
+                    )
+                )
+                .build()
+        )
         .build()
-        .also {
-            it.setAnalyzer(ContextCompat.getMainExecutor(context)) { imageProxy ->
-                frameCounter++
+        .also { analyzer ->
+            analyzer.setAnalyzer(cameraExecutor) { imageProxy ->
+                val timestamp = imageProxy.imageInfo.timestamp
 
-                if (frameCounter % FRAME_INTERVAL != 0) {
+
+                if (timestamp - latestAnalyzedTimestamp < 1000 / ANALYZE_FPS) {
                     imageProxy.close()
-                    return@setAnalyzer
                 }
 
-                frameCounter = 0
-
-                analysisScope.launch {
-                    val start = System.currentTimeMillis()
-
-                    val rotatedBitmap = imageProxy.toBitmap().rotate(imageProxy.imageInfo.rotationDegrees)
-                    imageProxy.close()
-
-                    val boundingBoxes = withTimeoutOrNull(DETECTION_TIMEOUT_MS.toLong()) {
-                        detector.detect(rotatedBitmap)
-                    }
-
-                    val end = System.currentTimeMillis()
-
-                    if (boundingBoxes != null) {
-                        val detectionCount = boundingBoxes.size
-                        val maxDetectionCount = YoloV8Model.MAX_DETECTION_COUNT
-                        val cnfThreshold = YoloV8Model.CNF_THRESHOLD
-                        val averageCnf = boundingBoxes.map { box -> box.cnf }.average()
-                        val elapsedMs = end - start
-
-                        val msgDetectionCount = "Detected $detectionCount/$maxDetectionCount objects"
-                        val msgElapsed = "Elapsed: $elapsedMs ms"
-                        val msgCnfInfo = "Conf THD: ${String.format("%.2f", cnfThreshold)}, Avg conf: ${String.format("%.2f", averageCnf)}"
-                        detectionStatus.value = "$msgDetectionCount\n$msgElapsed\n$msgCnfInfo"
-
-                        analyzedBitmap.value = drawBoundingBoxes(rotatedBitmap, boundingBoxes)
-                    } else {
-                        detectionStatus.value = "No detection or timed out (${DETECTION_TIMEOUT_MS} ms)"
-                    }
+                val bitmap = Bitmap.createBitmap(
+                    imageProxy.width,
+                    imageProxy.height,
+                    Bitmap.Config.ARGB_8888
+                )
+                imageProxy.use {
+                    bitmap.copyPixelsFromBuffer(imageProxy.planes[0].buffer)
                 }
+                latestAnalyzedTimestamp = timestamp
+
+                val matrix = Matrix().apply {
+                    postRotate(imageProxy.imageInfo.rotationDegrees.toFloat())
+                }
+
+                val rotatedBitmap = Bitmap.createBitmap(
+                    bitmap,
+                    0,
+                    0,
+                    bitmap.width,
+                    bitmap.height,
+                    matrix,
+                    false
+                )
+
+                cameraBitmap.value = rotatedBitmap
+                imageProxy.close()
             }
         }
 
@@ -95,6 +119,12 @@ fun Camera(detector: YoloV8Model) {
         scaleType = PreviewView.ScaleType.FIT_CENTER
     }
     val cameraProviderFuture = ProcessCameraProvider.getInstance(context)
+
+    LaunchedEffect(cameraBitmap.value) {
+        cameraBitmap.value?.let { bitmap ->
+            mainScope.launch { detector.detect(bitmap) }
+        }
+    }
 
     DisposableEffect(Unit) {
         val cameraProvider = cameraProviderFuture.get()
@@ -112,8 +142,11 @@ fun Camera(detector: YoloV8Model) {
             imageAnalyzer
         )
         onDispose {
+            superScope.cancel()
+            mainScope.cancel()
             cameraProvider.unbindAll()
-            analysisScope.cancel()
+            cameraExecutor.shutdown()
+            detector.close()
         }
     }
 
@@ -124,7 +157,7 @@ fun Camera(detector: YoloV8Model) {
                 modifier = Modifier.weight(1.0f)
             )
 
-            analyzedBitmap.value?.let {
+            overlayBitmap.value?.let {
                 Image(
                     bitmap = it.asImageBitmap(),
                     contentDescription = null,

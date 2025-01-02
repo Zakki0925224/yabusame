@@ -122,7 +122,8 @@ fun Camera(detector: YoloV8Model, cameraExecutor: ExecutorService) {
 
     LaunchedEffect(cameraBitmap.value) {
         cameraBitmap.value?.let { bitmap ->
-            mainScope.launch { detector.detect(bitmap) }
+            // superScope.launch { detector.detect(bitmap) }
+            detector.detect(bitmap)
         }
     }
 

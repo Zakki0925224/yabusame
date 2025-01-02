@@ -39,7 +39,7 @@ class YoloV8Model (context: Context) {
         private const val INPUT_STDDEV = 255.0f
         private val INPUT_IMAGE_TYPE = DataType.FLOAT32
         private val OUTPUT_IMAGE_TYPE = DataType.FLOAT32
-        const val CNF_THRESHOLD = 0.7f
+        const val CNF_THRESHOLD = 0.5f
         private const val IOU_THRESHOLD = 0.7f
 
         // https://qiita.com/napspans/items/e7390280b7f31675325c

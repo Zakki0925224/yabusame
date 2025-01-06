@@ -41,9 +41,6 @@ class YoloV8Model (context: Context) {
         private val OUTPUT_IMAGE_TYPE = DataType.FLOAT32
         const val CNF_THRESHOLD = 0.5f
         private const val IOU_THRESHOLD = 0.7f
-
-        // https://qiita.com/napspans/items/e7390280b7f31675325c
-        private val DETECTION_LIST = intArrayOf(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13)
     }
 
     init {
@@ -123,7 +120,7 @@ class YoloV8Model (context: Context) {
                 arrayIdx += this.numElements
             }
 
-            if (maxCnf > CNF_THRESHOLD && DETECTION_LIST.contains(maxIdx)) {
+            if (maxCnf > CNF_THRESHOLD) {
                 val clsName = labels[maxIdx]
                 val cx = array[i]
                 val cy = array[i + this.numElements]

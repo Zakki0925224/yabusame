@@ -32,9 +32,10 @@ fun convertClsToColor(cls: Int): Int {
     }
 }
 
-fun drawBoundingBoxes(bitmap: Bitmap, boxes: List<BoundingBox>): Bitmap {
-    val mutableBitmap = bitmap.copy(Bitmap.Config.ARGB_8888, true)
+fun drawBoundingBoxes(bitmapWidth: Int, bitmapHeight: Int, boxes: List<BoundingBox>): Bitmap {
+    val mutableBitmap = Bitmap.createBitmap(bitmapWidth, bitmapHeight, Bitmap.Config.ARGB_8888)
     val canvas = Canvas(mutableBitmap)
+    canvas.drawColor(Color.TRANSPARENT, PorterDuff.Mode.CLEAR)
 
     val textPaint = Paint().apply {
         color = Color.WHITE

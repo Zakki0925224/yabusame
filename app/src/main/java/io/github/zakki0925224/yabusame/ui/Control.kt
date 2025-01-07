@@ -33,7 +33,7 @@ fun Control(
             modifier = Modifier.fillMaxWidth()
         )
         Text(
-            text = "Detector Cnf Threshold: $detectorIoUThreshold"
+            text = "Detector IoU Threshold: $detectorIoUThreshold"
         )
     }
 }

@@ -21,7 +21,7 @@ class MainActivity : ComponentActivity() {
         }.toList()
 
     private lateinit var cameraExecutor: ExecutorService
-    private lateinit var detector: YoloV8Model
+    private lateinit var detector: Detector
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -30,7 +30,7 @@ class MainActivity : ComponentActivity() {
         this.cameraExecutor = Executors.newSingleThreadExecutor()
 
         this.cameraExecutor.execute {
-            this.detector = YoloV8Model(this)
+            this.detector = Detector(this)
 
             runOnUiThread {
                 setContent {

@@ -3,12 +3,9 @@ package io.github.zakki0925224.yabusame.ui
 import android.annotation.SuppressLint
 import android.graphics.*
 import android.util.*
-import android.view.ViewGroup.LayoutParams.MATCH_PARENT
-import android.widget.LinearLayout
 import androidx.camera.core.*
 import androidx.camera.core.resolutionselector.*
 import androidx.camera.lifecycle.ProcessCameraProvider
-import androidx.camera.view.PreviewView
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.Text
@@ -16,7 +13,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import io.github.zakki0925224.yabusame.*
 import kotlinx.coroutines.*
@@ -24,40 +20,37 @@ import java.util.concurrent.ExecutorService
 
 private val superScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 private val mainScope = CoroutineScope(Dispatchers.Main)
-private const val ANALYZE_FPS = 0.5
+private const val ANALYZE_FPS = 1
 
 @Composable
-fun Camera(detector: YoloV8Model, cameraExecutor: ExecutorService) {
+fun Camera(detector: Detector, cameraExecutor: ExecutorService) {
     var latestAnalyzedTimestamp = 0L
 
-    val cameraBitmap = remember { mutableStateOf<Bitmap?>(null) }
-    val overlayBitmap = remember { mutableStateOf<Bitmap?>(null) }
-    val detectionStatus = remember { mutableStateOf("") }
+    var cameraBitmap by remember { mutableStateOf<Bitmap?>(null) }
+    var overlayBitmap by remember { mutableStateOf<Bitmap?>(null) }
+    var detectionStatus by remember { mutableStateOf("") }
 
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
 
-    detector.detectorListener = object : YoloV8Model.DetectorListener {
+    detector.detectorListener = object : Detector.DetectorListener {
         override fun onEmptyDetected() {
             mainScope.launch {
-                detectionStatus.value = "No objects detected"
-                overlayBitmap.value = cameraBitmap.value
+                detectionStatus = "No objects detected"
+                overlayBitmap = cameraBitmap
             }
         }
 
         @SuppressLint("DefaultLocale")
         override fun onDetected(boxes: List<BoundingBox>, inferenceTime: Long) {
             val detectionCount = boxes.size
-            val cnfThreshold = YoloV8Model.CNF_THRESHOLD
-            val averageCnf = boxes.map { box -> box.cnf }.average()
 
             val msgDetectionCount = "Detected $detectionCount objects"
-            val msgCnfInfo = "Conf THD: ${String.format("%.2f", cnfThreshold)}, Avg conf: ${String.format("%.2f", averageCnf)}"
             val msgInfTime = "Inf time: $inferenceTime ms"
 
             mainScope.launch {
-                detectionStatus.value = "$msgDetectionCount\n$msgCnfInfo\n$msgInfTime"
-                overlayBitmap.value = drawBoundingBoxes(cameraBitmap.value!!, boxes)
+                detectionStatus = "$msgDetectionCount\n$msgInfTime"
+                overlayBitmap = drawBoundingBoxes(cameraBitmap!!, boxes)
             }
         }
     }
@@ -79,7 +72,6 @@ fun Camera(detector: YoloV8Model, cameraExecutor: ExecutorService) {
         .also { analyzer ->
             analyzer.setAnalyzer(cameraExecutor) { imageProxy ->
                 val timestamp = imageProxy.imageInfo.timestamp
-
 
                 if (timestamp - latestAnalyzedTimestamp < 1000 / ANALYZE_FPS) {
                     imageProxy.close()
@@ -109,19 +101,19 @@ fun Camera(detector: YoloV8Model, cameraExecutor: ExecutorService) {
                     false
                 )
 
-                cameraBitmap.value = rotatedBitmap
+                cameraBitmap = rotatedBitmap
                 imageProxy.close()
             }
         }
 
-    val previewView = PreviewView(context).apply {
-        layoutParams  = LinearLayout.LayoutParams(MATCH_PARENT, MATCH_PARENT)
-        scaleType = PreviewView.ScaleType.FIT_CENTER
-    }
+//    val previewView = PreviewView(context).apply {
+//        layoutParams  = LinearLayout.LayoutParams(MATCH_PARENT, MATCH_PARENT)
+//        scaleType = PreviewView.ScaleType.FIT_CENTER
+//    }
     val cameraProviderFuture = ProcessCameraProvider.getInstance(context)
 
-    LaunchedEffect(cameraBitmap.value) {
-        cameraBitmap.value?.let { bitmap ->
+    LaunchedEffect(cameraBitmap) {
+        cameraBitmap?.let { bitmap ->
             // superScope.launch { detector.detect(bitmap) }
             detector.detect(bitmap)
         }
@@ -130,16 +122,16 @@ fun Camera(detector: YoloV8Model, cameraExecutor: ExecutorService) {
     DisposableEffect(Unit) {
         val cameraProvider = cameraProviderFuture.get()
         Log.d("cameraProvider", cameraProvider.toString())
-        val preview = Preview.Builder().build()
+        // val preview = Preview.Builder().build()
         val cameraSelector = CameraSelector.Builder()
             .requireLensFacing(CameraSelector.LENS_FACING_BACK)
             .build()
 
-        preview.surfaceProvider = previewView.surfaceProvider
+        // preview.surfaceProvider = previewView.surfaceProvider
         cameraProvider.bindToLifecycle(
             lifecycleOwner,
             cameraSelector,
-            preview,
+            // preview,
             imageAnalyzer
         )
         onDispose {
@@ -153,12 +145,12 @@ fun Camera(detector: YoloV8Model, cameraExecutor: ExecutorService) {
 
     Column(modifier = Modifier.fillMaxSize()) {
         Row(modifier = Modifier.weight(1.0f)) {
-            AndroidView(
-                factory = { previewView },
-                modifier = Modifier.weight(1.0f)
-            )
+//            AndroidView(
+//                factory = { previewView },
+//                modifier = Modifier.weight(1.0f)
+//            )
 
-            overlayBitmap.value?.let {
+            overlayBitmap?.let {
                 Image(
                     bitmap = it.asImageBitmap(),
                     contentDescription = null,
@@ -174,7 +166,7 @@ fun Camera(detector: YoloV8Model, cameraExecutor: ExecutorService) {
             )
         }
         Text(
-            text = detectionStatus.value,
+            text = detectionStatus,
             modifier = Modifier.fillMaxWidth()
         )
     }

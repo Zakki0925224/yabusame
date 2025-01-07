@@ -12,13 +12,15 @@ import org.tensorflow.lite.support.image.*
 import org.tensorflow.lite.support.tensorbuffer.TensorBuffer
 import java.io.*
 
-class YoloV8Model (context: Context) {
+class Detector (context: Context) {
     private var interpreter: Interpreter
     private var labels: List<String> = mutableListOf()
     private var tensorWidth: Int = 0
     private var tensorHeight: Int = 0
     private var numChannel: Int = 0
     private var numElements: Int = 0
+    var cnfThreshold: Float = DEFAULT_CNF_THRESHOLD
+    var ioUThreshold: Float = DEFAULT_IOU_THRESHOLD
 
     private val imageProcessor = ImageProcessor.Builder()
         .add(NormalizeOp(INPUT_MEAN, INPUT_STDDEV))
@@ -39,8 +41,8 @@ class YoloV8Model (context: Context) {
         private const val INPUT_STDDEV = 255.0f
         private val INPUT_IMAGE_TYPE = DataType.FLOAT32
         private val OUTPUT_IMAGE_TYPE = DataType.FLOAT32
-        const val CNF_THRESHOLD = 0.5f
-        private const val IOU_THRESHOLD = 0.7f
+        const val DEFAULT_CNF_THRESHOLD = 0.5f
+        const val DEFAULT_IOU_THRESHOLD = 0.7f
     }
 
     init {
@@ -106,7 +108,7 @@ class YoloV8Model (context: Context) {
         val boxes = mutableListOf<BoundingBox>()
 
         for (i in 0 until this.numElements) {
-            var maxCnf = CNF_THRESHOLD
+            var maxCnf = this.cnfThreshold
             var maxIdx = -1
             var j = 4
             var arrayIdx = i + this.numElements * j
@@ -120,7 +122,7 @@ class YoloV8Model (context: Context) {
                 arrayIdx += this.numElements
             }
 
-            if (maxCnf > CNF_THRESHOLD) {
+            if (maxCnf > this.cnfThreshold) {
                 val clsName = labels[maxIdx]
                 val cx = array[i]
                 val cy = array[i + this.numElements]
@@ -157,7 +159,7 @@ class YoloV8Model (context: Context) {
                 val nextBox = iterator.next()
                 val iou = calcIoU(first, nextBox)
 
-                if (iou >= IOU_THRESHOLD) {
+                if (iou >= this.ioUThreshold) {
                     iterator.remove()
                 }
             }

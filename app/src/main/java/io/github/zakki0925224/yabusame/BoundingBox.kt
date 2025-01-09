@@ -18,19 +18,29 @@ data class BoundingBox(
 
 fun convertClsToColor(cls: Int): Int {
     return when (cls) {
-        // pedestrian_light_g
-        0 -> Color.GREEN
-        // pedestrian_light_r
-        1 -> Color.RED
-        // traffic_light_g
-        2 -> Color.GREEN
-        // traffic_light_r
-        3 -> Color.RED
-        // traffic_light_y
-        4 -> Color.YELLOW
-        else -> Color.RED
+        0 -> Color.CYAN          // bike
+        1 -> Color.rgb(255, 165, 0) // bus
+        2 -> Color.MAGENTA       // car
+        3 -> Color.GREEN         // pedestrian_light_g
+        4 -> Color.RED           // pedestrian_light_r
+        5 -> Color.rgb(255, 200, 0) // person
+        6 -> Color.BLUE          // road_sign_crosswalk
+        7 -> Color.LTGRAY        // road_sign_no_parking
+        8 -> Color.DKGRAY        // road_sign_other_directional
+        9 -> Color.rgb(255, 80, 80)  // road_sign_speed_limit_10
+        10 -> Color.rgb(255, 100, 100) // road_sign_speed_limit_20
+        11 -> Color.rgb(255, 120, 120) // road_sign_speed_limit_30
+        12 -> Color.rgb(255, 140, 140) // road_sign_speed_limit_40
+        13 -> Color.rgb(255, 160, 160) // road_sign_speed_limit_50
+        14 -> Color.RED          // road_sign_stop
+        15 -> Color.GREEN        // traffic_light_g
+        16 -> Color.RED          // traffic_light_r
+        17 -> Color.YELLOW       // traffic_light_y
+        18 -> Color.rgb(0, 128, 255) // truck
+        else -> Color.DKGRAY
     }
 }
+
 
 fun drawBoundingBoxes(bitmapWidth: Int, bitmapHeight: Int, boxes: List<BoundingBox>): Bitmap {
     val mutableBitmap = Bitmap.createBitmap(bitmapWidth, bitmapHeight, Bitmap.Config.ARGB_8888)

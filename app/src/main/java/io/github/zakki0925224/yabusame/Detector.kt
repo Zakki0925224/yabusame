@@ -35,7 +35,7 @@ class Detector (context: Context) {
     var detectorListener: DetectorListener? = null
 
     companion object {
-        private const val MODEL_PATH = "yolov8s_float32.tflite"
+        private const val MODEL_PATH = "yolov8n_float32.tflite"
         private const val LABEL_PATH = "labels.txt"
         private const val INPUT_MEAN = 0.0f
         private const val INPUT_STDDEV = 255.0f

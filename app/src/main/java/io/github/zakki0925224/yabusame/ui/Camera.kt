@@ -19,10 +19,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import io.github.zakki0925224.yabusame.*
-import kotlinx.coroutines.*
 import java.util.concurrent.ExecutorService
 
-private val superScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 private const val ANALYZE_FPS = 2
 
 @Composable
@@ -117,7 +115,6 @@ fun Camera(detector: Detector, cameraExecutor: ExecutorService) {
 
     LaunchedEffect(cameraBitmap) {
         cameraBitmap?.let { bitmap ->
-            // superScope.launch { detector.detect(bitmap) }
             detector.detect(bitmap)
         }
     }
@@ -138,7 +135,6 @@ fun Camera(detector: Detector, cameraExecutor: ExecutorService) {
             imageAnalyzer
         )
         onDispose {
-            superScope.cancel()
             cameraProvider.unbindAll()
             cameraExecutor.shutdown()
             detector.close()

@@ -10,7 +10,7 @@ import io.github.zakki0925224.yabusame.ui.theme.YabusameTheme
 import java.util.concurrent.*
 
 class MainActivity : ComponentActivity() {
-    private val REQUIRED_PERMISSIONS =
+    private val requiredPermissions =
         mutableListOf (
             Manifest.permission.CAMERA,
             Manifest.permission.RECORD_AUDIO
@@ -22,21 +22,26 @@ class MainActivity : ComponentActivity() {
 
     private lateinit var cameraExecutor: ExecutorService
     private lateinit var detector: Detector
+    private lateinit var voiceGuide: VoiceGuide
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
         this.cameraExecutor = Executors.newSingleThreadExecutor()
-
         this.cameraExecutor.execute {
             this.detector = Detector(this)
+            this.voiceGuide = VoiceGuide(this)
+
+            this.voiceGuide.setOnInitListener {
+                this.voiceGuide.speak("Hello!")
+            }
 
             runOnUiThread {
                 setContent {
                     YabusameTheme {
                         TopLevel(
-                            permissions = REQUIRED_PERMISSIONS,
+                            permissions = this.requiredPermissions,
                             detector = this.detector,
                             cameraExecutor = this.cameraExecutor
                         )

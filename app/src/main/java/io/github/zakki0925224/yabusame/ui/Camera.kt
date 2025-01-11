@@ -24,7 +24,9 @@ import java.util.concurrent.ExecutorService
 private const val ANALYZE_FPS = 2
 
 @Composable
-fun Camera(detector: Detector, cameraExecutor: ExecutorService) {
+fun Camera(detector: Detector,
+           voiceGuide: VoiceGuide,
+           cameraExecutor: ExecutorService) {
     var latestAnalyzedTimestamp = 0L
 
     var cameraBitmap by remember { mutableStateOf<Bitmap?>(null) }
@@ -52,6 +54,14 @@ fun Camera(detector: Detector, cameraExecutor: ExecutorService) {
 
             detectionStatus = "$msgDetectionCount\n$msgInfTime"
             overlayBitmap = drawBoundingBoxes(bitmapWidth, bitmapHeight, boxes)
+
+            voiceGuide.speakWithBoundingBoxes(boxes)
+        }
+
+        override fun onDetectingButDetectorDisabled() {
+            detectionStatus = ""
+            if (overlayBitmap != null)
+                overlayBitmap = null
         }
     }
 

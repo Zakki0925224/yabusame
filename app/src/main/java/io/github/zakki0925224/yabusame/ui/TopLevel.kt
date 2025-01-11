@@ -8,6 +8,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import io.github.zakki0925224.yabusame.R
 import io.github.zakki0925224.yabusame.Detector
+import io.github.zakki0925224.yabusame.VoiceGuide
 import java.util.concurrent.ExecutorService
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -15,9 +16,12 @@ import java.util.concurrent.ExecutorService
 fun TopLevel(
     permissions: List<String>,
     cameraExecutor: ExecutorService,
-    detector: Detector) {
+    detector: Detector,
+    voiceGuide: VoiceGuide) {
     var detectorCnfThreshold by remember { mutableFloatStateOf(Detector.DEFAULT_CNF_THRESHOLD) }
     var detectorIoUThreshold by remember { mutableFloatStateOf(Detector.DEFAULT_IOU_THRESHOLD) }
+    var isDetectorEnabled by remember { mutableStateOf(detector.isDetectorEnabled) }
+    var isVoiceGuideEnabled by remember { mutableStateOf(voiceGuide.isVoiceGuideEnabled) }
 
     LaunchedEffect(detectorCnfThreshold) {
         detector.cnfThreshold = detectorCnfThreshold
@@ -25,6 +29,14 @@ fun TopLevel(
 
     LaunchedEffect(detectorIoUThreshold) {
         detector.ioUThreshold = detectorIoUThreshold
+    }
+
+    LaunchedEffect(isDetectorEnabled) {
+        detector.isDetectorEnabled = isDetectorEnabled
+    }
+
+    LaunchedEffect(isVoiceGuideEnabled) {
+        voiceGuide.isVoiceGuideEnabled = isVoiceGuideEnabled
     }
 
     Scaffold(
@@ -43,13 +55,21 @@ fun TopLevel(
             content = {
                 Column(modifier = Modifier.fillMaxSize()) {
                     Box(modifier = Modifier.weight(1f)) {
-                        Camera(detector, cameraExecutor)
+                        Camera(
+                            detector,
+                            voiceGuide,
+                            cameraExecutor
+                        )
                     }
                     Control(
                         detectorCnfThreshold = detectorCnfThreshold,
                         detectorIoUThreshold = detectorIoUThreshold,
+                        isDetectorEnabled = isDetectorEnabled,
+                        isVoiceGuideEnabled = isVoiceGuideEnabled,
                         onChangeDetectorCnfThreshold = { detectorCnfThreshold = it },
-                        onChangeDetectorIoUThreshold = { detectorIoUThreshold = it }
+                        onChangeDetectorIoUThreshold = { detectorIoUThreshold = it },
+                        onChangeIsDetectorEnabled = { isDetectorEnabled = it },
+                        onChangeIsVoiceGuideEnabled = { isVoiceGuideEnabled = it }
                     )
                     Spacer(modifier = Modifier.height(128.dp))
                 }

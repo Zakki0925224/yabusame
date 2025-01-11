@@ -21,6 +21,7 @@ class Detector (context: Context) {
     private var numElements: Int = 0
     var cnfThreshold: Float = DEFAULT_CNF_THRESHOLD
     var ioUThreshold: Float = DEFAULT_IOU_THRESHOLD
+    var isDetectorEnabled: Boolean = true
 
     private val imageProcessor = ImageProcessor.Builder()
         .add(NormalizeOp(INPUT_MEAN, INPUT_STDDEV))
@@ -30,6 +31,7 @@ class Detector (context: Context) {
     interface DetectorListener {
         fun onDetected(boxes: List<BoundingBox>, inferenceTime: Long)
         fun onEmptyDetected()
+        fun onDetectingButDetectorDisabled()
     }
 
     var detectorListener: DetectorListener? = null
@@ -41,7 +43,7 @@ class Detector (context: Context) {
         private const val INPUT_STDDEV = 255.0f
         private val INPUT_IMAGE_TYPE = DataType.FLOAT32
         private val OUTPUT_IMAGE_TYPE = DataType.FLOAT32
-        const val DEFAULT_CNF_THRESHOLD = 0.5f
+        const val DEFAULT_CNF_THRESHOLD = 0.8f
         const val DEFAULT_IOU_THRESHOLD = 0.7f
     }
 
@@ -173,6 +175,10 @@ class Detector (context: Context) {
     }
 
     fun detect(frame: Bitmap) {
+        if (!this.isDetectorEnabled) {
+            this.detectorListener?.onDetectingButDetectorDisabled()
+            return
+        }
         if (this.tensorWidth == 0) return
         if (this.tensorHeight == 0) return
         if (this.numChannel == 0) return

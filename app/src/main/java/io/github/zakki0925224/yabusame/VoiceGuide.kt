@@ -8,7 +8,9 @@ import java.util.Locale
 class VoiceGuide(context: Context) : TextToSpeech.OnInitListener {
     private var textToSpeech: TextToSpeech? = null
     private var isInitialized = false
-    private var onInitListener: (() -> Unit)? = null
+    private var isSpeaking = false
+    private var lastSpeakedTextHash = 0
+    var isVoiceGuideEnabled = true
 
     init {
         this.textToSpeech = TextToSpeech(context, this)
@@ -27,24 +29,30 @@ class VoiceGuide(context: Context) : TextToSpeech.OnInitListener {
             }
             else -> {
                 this.isInitialized = true
-                this.onInitListener?.invoke()
             }
         }
     }
 
-    fun speak(text: String, onComplete: (() -> Unit)? = null) {
+    fun speak(text: String) {
         if (!this.isInitialized) {
             Log.e("VoiceGuide", "TextToSpeech is not initialized")
             return
         }
 
+        val textHash = text.hashCode()
+
+        if (!this.isVoiceGuideEnabled || this.isSpeaking || this.lastSpeakedTextHash == textHash)
+            return
+
+        this.isSpeaking = true
+        this.lastSpeakedTextHash = textHash
         val utteranceId = this.hashCode().toString()
         this.textToSpeech?.speak(text, TextToSpeech.QUEUE_FLUSH, null, utteranceId)
 
         this.textToSpeech?.setOnUtteranceProgressListener(object: UtteranceProgressListener() {
             override fun onStart(utteranceId: String?) {}
             override fun onDone(utteranceId: String?) {
-                onComplete?.invoke()
+                isSpeaking = false
             }
 
             override fun onError(utteranceId: String?) {
@@ -53,8 +61,15 @@ class VoiceGuide(context: Context) : TextToSpeech.OnInitListener {
         })
     }
 
-    fun setOnInitListener(listener: () -> Unit) {
-        this.onInitListener = listener
+    fun speakWithBoundingBoxes(boxes: List<BoundingBox>) {
+        val uniqueClasses = boxes.map { it.cls }.toSet()
+        val voiceMessages = uniqueClasses
+            .map { convertClsToVoiceGuideMessage(it) }
+            .filter(String::isNotEmpty)
+
+        for (msg in voiceMessages) {
+            this.speak(msg)
+        }
     }
 
     fun destroy() {

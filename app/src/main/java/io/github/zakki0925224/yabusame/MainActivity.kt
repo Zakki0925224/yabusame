@@ -33,16 +33,13 @@ class MainActivity : ComponentActivity() {
             this.detector = Detector(this)
             this.voiceGuide = VoiceGuide(this)
 
-            this.voiceGuide.setOnInitListener {
-                this.voiceGuide.speak("Hello!")
-            }
-
             runOnUiThread {
                 setContent {
                     YabusameTheme {
                         TopLevel(
                             permissions = this.requiredPermissions,
                             detector = this.detector,
+                            voiceGuide = this.voiceGuide,
                             cameraExecutor = this.cameraExecutor
                         )
                     }

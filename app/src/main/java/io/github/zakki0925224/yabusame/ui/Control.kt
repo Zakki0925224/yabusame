@@ -8,6 +8,8 @@ import androidx.compose.ui.unit.dp
 
 @Composable
 fun Control(
+    isDetectorGpuMode: Boolean,
+
     detectorCnfThreshold: Float,
     detectorIoUThreshold: Float,
     isDetectorEnabled: Boolean,
@@ -25,7 +27,7 @@ fun Control(
             )
             Spacer(modifier = Modifier.width(8.dp))
             Text(
-                text = "Detector ${if (isDetectorEnabled) "Enabled" else "Disabled"}",
+                text = "Detector ${if (isDetectorEnabled) "enabled" else "disabled"}\n(${if (isDetectorGpuMode) "GPU" else "CPU"} mode)",
                 modifier = Modifier.align(Alignment.CenterVertically)
             )
 
@@ -37,7 +39,7 @@ fun Control(
             )
             Spacer(modifier = Modifier.width(8.dp))
             Text(
-                text = "Voice guide ${if (isVoiceGuideEnabled) "Enabled" else "Disabled"}",
+                text = "Voice guide ${if (isVoiceGuideEnabled) "enabled" else "disabled"}",
                 modifier = Modifier.align(Alignment.CenterVertically)
             )
         }

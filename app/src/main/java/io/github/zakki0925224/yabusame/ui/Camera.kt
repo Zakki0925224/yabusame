@@ -31,14 +31,14 @@ fun Camera(detector: Detector,
 
     var cameraBitmap by remember { mutableStateOf<Bitmap?>(null) }
     var overlayBitmap by remember { mutableStateOf<Bitmap?>(null) }
-    var detectionStatus by remember { mutableStateOf("") }
+    var detectionStatus by remember { mutableStateOf("\n") }
 
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
 
     detector.detectorListener = object : Detector.DetectorListener {
         override fun onEmptyDetected() {
-            detectionStatus = "No objects detected"
+            detectionStatus = "No objects detected\n"
             overlayBitmap = null
         }
 
@@ -59,7 +59,7 @@ fun Camera(detector: Detector,
         }
 
         override fun onDetectingButDetectorDisabled() {
-            detectionStatus = ""
+            detectionStatus = "\n"
             if (overlayBitmap != null)
                 overlayBitmap = null
         }

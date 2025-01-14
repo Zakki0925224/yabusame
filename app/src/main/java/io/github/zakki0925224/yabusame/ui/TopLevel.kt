@@ -62,6 +62,8 @@ fun TopLevel(
                         )
                     }
                     Control(
+                        isDetectorGpuMode = detector.isGpuMode,
+
                         detectorCnfThreshold = detectorCnfThreshold,
                         detectorIoUThreshold = detectorIoUThreshold,
                         isDetectorEnabled = isDetectorEnabled,

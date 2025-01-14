@@ -22,6 +22,7 @@ class Detector (context: Context) {
     var cnfThreshold: Float = DEFAULT_CNF_THRESHOLD
     var ioUThreshold: Float = DEFAULT_IOU_THRESHOLD
     var isDetectorEnabled: Boolean = true
+    var isGpuMode: Boolean = false
 
     private val imageProcessor = ImageProcessor.Builder()
         .add(NormalizeOp(INPUT_MEAN, INPUT_STDDEV))
@@ -53,6 +54,7 @@ class Detector (context: Context) {
         val options = Interpreter.Options().apply {
             if (compatList.isDelegateSupportedOnThisDevice) {
                 this.addDelegate(GpuDelegate(compatList.bestOptionsForThisDevice))
+                isGpuMode = true
             } else {
                 this.numThreads = 4
                 Log.d("detector", "GPU delegate is not supported.")

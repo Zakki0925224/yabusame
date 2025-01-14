@@ -10,15 +10,7 @@ import io.github.zakki0925224.yabusame.ui.theme.YabusameTheme
 import java.util.concurrent.*
 
 class MainActivity : ComponentActivity() {
-    private val requiredPermissions =
-        mutableListOf (
-            Manifest.permission.CAMERA,
-            Manifest.permission.RECORD_AUDIO
-        ).apply {
-            if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.P) {
-                add(Manifest.permission.WRITE_EXTERNAL_STORAGE)
-            }
-        }.toList()
+    private val REQUIRED_PERMISSIONS = arrayOf(Manifest.permission.CAMERA)
 
     private lateinit var cameraExecutor: ExecutorService
     private lateinit var detector: Detector
@@ -37,7 +29,7 @@ class MainActivity : ComponentActivity() {
                 setContent {
                     YabusameTheme {
                         TopLevel(
-                            permissions = this.requiredPermissions,
+                            permissions = this.REQUIRED_PERMISSIONS.toList(),
                             detector = this.detector,
                             voiceGuide = this.voiceGuide,
                             cameraExecutor = this.cameraExecutor
@@ -48,11 +40,3 @@ class MainActivity : ComponentActivity() {
         }
     }
 }
-
-//@Preview(showBackground = true)
-//@Composable
-//fun GreetingPreview() {
-//    YabusameTheme {
-//        TopLevel(permissions = emptyList())
-//    }
-//}

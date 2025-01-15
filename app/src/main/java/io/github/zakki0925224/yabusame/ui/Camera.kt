@@ -19,9 +19,15 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import io.github.zakki0925224.yabusame.*
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 import java.util.concurrent.ExecutorService
 
 private const val ANALYZE_FPS = 2
+
+val detectionMutex = Mutex()
 
 @Composable
 fun Camera(detector: Detector,
@@ -125,7 +131,11 @@ fun Camera(detector: Detector,
 
     LaunchedEffect(cameraBitmap) {
         cameraBitmap?.let { bitmap ->
-            detector.detect(bitmap)
+            withContext(Dispatchers.Default) {
+                detectionMutex.withLock { // prevent UI freeze
+                    detector.detect(bitmap)
+                }
+            }
         }
     }
 

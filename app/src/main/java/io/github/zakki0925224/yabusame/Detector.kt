@@ -44,7 +44,7 @@ class Detector (context: Context) {
         private const val INPUT_STDDEV = 255.0f
         private val INPUT_IMAGE_TYPE = DataType.FLOAT32
         private val OUTPUT_IMAGE_TYPE = DataType.FLOAT32
-        const val DEFAULT_CNF_THRESHOLD = 0.8f
+        const val DEFAULT_CNF_THRESHOLD = 0.6f
         const val DEFAULT_IOU_THRESHOLD = 0.7f
     }
 

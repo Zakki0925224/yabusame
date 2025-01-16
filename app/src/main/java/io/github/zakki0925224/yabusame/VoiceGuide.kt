@@ -9,7 +9,7 @@ class VoiceGuide(context: Context) : TextToSpeech.OnInitListener {
     private var textToSpeech: TextToSpeech? = null
     private var isInitialized = false
     private var isSpeaking = false
-    private var lastSpeakedTextHash = 0
+    private var lastSpokeText = ""
     var isVoiceGuideEnabled = true
 
     init {
@@ -39,13 +39,11 @@ class VoiceGuide(context: Context) : TextToSpeech.OnInitListener {
             return
         }
 
-        val textHash = text.hashCode()
-
-        if (!this.isVoiceGuideEnabled || this.isSpeaking || this.lastSpeakedTextHash == textHash)
+        if (!this.isVoiceGuideEnabled || this.isSpeaking || this.lastSpokeText == text)
             return
 
         this.isSpeaking = true
-        this.lastSpeakedTextHash = textHash
+        this.lastSpokeText = text
         val utteranceId = this.hashCode().toString()
         this.textToSpeech?.speak(text, TextToSpeech.QUEUE_FLUSH, null, utteranceId)
 
